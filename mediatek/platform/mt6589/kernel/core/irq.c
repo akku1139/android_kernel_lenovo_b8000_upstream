@@ -19,6 +19,9 @@
 
 #include <linux/mtk_ram_console.h>
 
+#define GIC_CPU_AIAR 0x20
+#define GIC_CPU_AEOI 0x24
+
 #define GIC_ICDISR (GIC_DIST_BASE + 0x80)
 #define GIC_ICDISER0 (GIC_DIST_BASE + 0x100)
 #define GIC_ICDISER1 (GIC_DIST_BASE + 0x104)
