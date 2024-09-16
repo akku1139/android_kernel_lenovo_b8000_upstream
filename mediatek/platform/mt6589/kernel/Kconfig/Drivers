@@ -364,11 +364,13 @@ config MTK_FGADC # FGADC_MT6573
 config MTK_PMIC # 
         tristate "MediaTek Power Management Unit Driver"
         default y
+
 config MTK_PMIC_WRAP
         bool "MediaTek PMIC_WRAP driver "
         default y
         ---help---
           MediaTek pmic_wrap driver 
+
 config POWER_EXT # 
         tristate "MediaTek Power Ext"        
         default y
