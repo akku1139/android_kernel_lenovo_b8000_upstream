@@ -45,8 +45,3 @@ static void __init mt6589_timer_init(void)
   // printk("fwq no generic timer");
 #endif
 }
-
-
-struct sys_timer mt6589_timer = {
-    .init = mt6589_timer_init,
-};
