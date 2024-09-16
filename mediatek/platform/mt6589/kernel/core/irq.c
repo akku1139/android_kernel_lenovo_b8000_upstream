@@ -317,7 +317,7 @@ static void mt_gic_cpu_init(void)
     dsb();
 }
 
-void __cpuinit mt_gic_secondary_init(void)
+void mt_gic_secondary_init(void)
 {
     mt_gic_cpu_init();
 }
