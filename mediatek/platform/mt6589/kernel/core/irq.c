@@ -19,6 +19,8 @@
 
 #include <linux/mtk_ram_console.h>
 
+#define cpus_addr(src) ((src).bits)
+
 #define GIC_CPU_AIAR 0x20
 #define GIC_CPU_AEOI 0x24
 
