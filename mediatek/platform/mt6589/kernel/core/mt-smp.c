@@ -67,7 +67,7 @@ int L2CTLR_get_core_count(void){
 
 }
 
-void __cpuinit platform_secondary_init(unsigned int cpu)
+void platform_secondary_init(unsigned int cpu)
 {
     printk(KERN_INFO "Slave cpu init\n");
     HOTPLUG_INFO("platform_secondary_init, cpu: %d\n", cpu);
@@ -99,7 +99,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
     spin_unlock(&boot_lock);
 }
 
-int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+int boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
     unsigned long timeout;
 

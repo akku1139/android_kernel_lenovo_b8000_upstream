@@ -493,7 +493,7 @@ ssize_t mtk_rgu_pause_wdt_store(struct kobject *kobj, const char *buffer, size_t
 #endif /*__ENABLE_WDT_SYSFS__*/
 /*---------------------------------------------------------------------------*/
 
-static int __cpuinit
+static int
 wk_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	int hotcpu = (unsigned long)hcpu;
@@ -549,7 +549,7 @@ wk_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata cpu_nfb = {
+static struct notifier_block cpu_nfb = {
 	.notifier_call = wk_cpu_callback
 };
 
