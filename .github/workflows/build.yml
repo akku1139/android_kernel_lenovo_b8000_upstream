@@ -13,6 +13,7 @@ env:
   KCFLAGS: "-pipe -mtune=cortex-a7 -march=armv7-a -mfpu=neon-vfpv4"
   MTK_ROOT_CUSTOM: "./mediatek"
   TARGET_PRODUCT: "lenovo89_tb_x10_jb2"
+  ARCH: "arm"
 
 jobs:
   build:
