@@ -41,8 +41,8 @@ jobs:
           source ./mediatek/build/shell.sh ./ kernel
           make mediatek-configs
 
-      - name: Config
-        run: make silentoldconfig
+      #- name: Config
+      #  run: make silentoldconfig
 
       - name: Build
         run: make -j6
