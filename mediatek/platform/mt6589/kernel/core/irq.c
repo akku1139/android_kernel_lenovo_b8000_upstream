@@ -41,6 +41,29 @@
 #define GIC_ICDICER7 (GIC_DIST_BASE + 0x19C)
 #define INT_POL_CTL0 (MCUSYS_CFGREG_BASE + 0x100)
 
+#define IRQF_VALID	(1 << 0)
+#define IRQF_PROBE	(1 << 1)
+#define IRQF_NOAUTOEN	(1 << 2)
+
+void set_irq_flags(unsigned int irq, unsigned int iflags)
+{
+        unsigned long clr = 0, set = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
+
+        if (irq >= nr_irqs) {
+                printk(KERN_ERR "Trying to set irq flags for IRQ%d\n", irq);
+                return;
+        }
+
+        if (iflags & IRQF_VALID)
+                clr |= IRQ_NOREQUEST;
+        if (iflags & IRQF_PROBE)
+                clr |= IRQ_NOPROBE;
+        if (!(iflags & IRQF_NOAUTOEN))
+                clr |= IRQ_NOAUTOEN;
+        /* Order is clear bits in "clr" then set bits in "set" */
+        irq_modify_status(irq, clr, set & ~clr);
+}
+
 static spinlock_t irq_lock;
 unsigned int irq_total_secondary_cpus;      //irq_total_secondary_cpus will be initialized in smp_init_cpus() of mt-smp.c 
 
