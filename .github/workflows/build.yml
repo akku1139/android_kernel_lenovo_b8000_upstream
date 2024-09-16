@@ -40,7 +40,7 @@ jobs:
         run: make mediatek-configs
 
       - name: Config
-        run: make ${makeflags} ${makedefs} oldconfig
+        run: make oldconfig
 
       - name: Build
         run: make -j6
