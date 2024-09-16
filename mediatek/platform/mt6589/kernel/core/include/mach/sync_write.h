@@ -5,7 +5,7 @@
 
 #include <linux/io.h>
 #include <asm/cacheflush.h>
-#include <asm/system.h>
+#include <asm/barrier.h>
 
 /*
  * Define macros.
