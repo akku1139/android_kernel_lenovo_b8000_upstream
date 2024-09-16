@@ -6,7 +6,7 @@
 #include <linux/irq.h>
 #include <linux/proc_fs.h>
 #include <linux/syscore_ops.h>
-#include <asm/sched_clock.h>
+#include <linux/sched_clock.h>
 
 #include <mach/mt_reg_base.h>
 #include <mach/mt_gpt.h>
