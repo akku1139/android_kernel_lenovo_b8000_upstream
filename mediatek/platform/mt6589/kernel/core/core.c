@@ -72,7 +72,7 @@ static struct map_desc mt_io_desc[] __initdata =
         .virtual = SYSRAM_BASE,
         .pfn = __phys_to_pfn(IO_VIRT_TO_PHYS(SYSRAM_BASE)),
         .length = SZ_256K,
-        .type = MT_MEMORY_NONCACHED
+        .type = MT_MEMORY_RWX_NONCACHED
     },    
     {
         .virtual = DISPSYS_BASE,
@@ -108,7 +108,7 @@ static struct map_desc mt_io_desc[] __initdata =
         .virtual = INTER_SRAM,
         .pfn = __phys_to_pfn(0x00100000),
         .length = SZ_64K,
-        .type = MT_MEMORY_NONCACHED
+        .type = MT_MEMORY_RWX_NONCACHED
     },
 
 
