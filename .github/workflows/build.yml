@@ -35,8 +35,6 @@ jobs:
           sudo ln -sf /usr/bin/bash /usr/bin/sh
           echo `pwd`/toolchain/Python-2.7.18 >> $GITHUB_PATH
 
-      - run: make olddefconfig
-
       - name: Mediatek Config
         run: |
           source ./mediatek/build/shell.sh ./ kernel
