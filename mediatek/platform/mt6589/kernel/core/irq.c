@@ -8,7 +8,7 @@
 #include <linux/aee.h>
 
 #include <asm/mach/irq.h>
-#include <asm/hardware/gic.h>
+#include <linux/irqchip/arm-gic.h>
 #include <asm/fiq.h>
 #include <asm/fiq_glue.h>
 
