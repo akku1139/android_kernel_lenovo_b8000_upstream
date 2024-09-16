@@ -12,7 +12,7 @@
  * Copyright (C) 2011  MIPS Technologies, Inc.
  *
  * ... and the days got worse and worse and now you see
- * I've gone completly out of my mind.
+ * I've gone completely out of my mind.
  *
  * They're coming to take me a away haha
  * they're coming to take me a away hoho hihi haha
@@ -2329,7 +2329,9 @@ static void config_htw_params(void)
 	if (CONFIG_PGTABLE_LEVELS >= 3)
 		pwsize |= ilog2(PTRS_PER_PMD) << MIPS_PWSIZE_MDW_SHIFT;
 
-	pwsize |= ilog2(sizeof(pte_t)/4) << MIPS_PWSIZE_PTEW_SHIFT;
+	/* If XPA has been enabled, PTEs are 64-bit in size. */
+	if (config_enabled(CONFIG_64BITS) || (read_c0_pagegrain() & PG_ELPA))
+		pwsize |= 1;
 
 	write_c0_pwsize(pwsize);
 

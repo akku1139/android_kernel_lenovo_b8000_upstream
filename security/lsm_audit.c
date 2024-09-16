@@ -220,7 +220,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	 */
 	BUILD_BUG_ON(sizeof(a->u) > sizeof(void *)*2);
 
-	audit_log_format(ab, " pid=%d comm=", task_pid_nr(current));
+	audit_log_format(ab, " pid=%d comm=", task_tgid_nr(current));
 	audit_log_untrustedstring(ab, memcpy(comm, current->comm, sizeof(comm)));
 
 	switch (a->type) {
@@ -264,9 +264,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		struct inode *inode;
 
 		audit_log_format(ab, " name=");
-		spin_lock(&a->u.dentry->d_lock);
 		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
-		spin_unlock(&a->u.dentry->d_lock);
 
 		inode = d_backing_inode(a->u.dentry);
 		if (inode) {
@@ -284,9 +282,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		dentry = d_find_alias(inode);
 		if (dentry) {
 			audit_log_format(ab, " name=");
-			spin_lock(&dentry->d_lock);
-			audit_log_untrustedstring(ab, dentry->d_name.name);
-			spin_unlock(&dentry->d_lock);
+			audit_log_untrustedstring(ab,
+					 dentry->d_name.name);
 			dput(dentry);
 		}
 		audit_log_format(ab, " dev=");
@@ -297,7 +294,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_TASK: {
 		struct task_struct *tsk = a->u.tsk;
 		if (tsk) {
-			pid_t pid = task_pid_nr(tsk);
+			pid_t pid = task_tgid_nr(tsk);
 			if (pid) {
 				char comm[sizeof(tsk->comm)];
 				audit_log_format(ab, " opid=%d ocomm=", pid);
@@ -311,7 +308,6 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		if (a->u.net->sk) {
 			struct sock *sk = a->u.net->sk;
 			struct unix_sock *u;
-			struct unix_address *addr;
 			int len = 0;
 			char *p = NULL;
 
@@ -342,15 +338,14 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 #endif
 			case AF_UNIX:
 				u = unix_sk(sk);
-				addr = smp_load_acquire(&u->addr);
-				if (!addr)
-					break;
 				if (u->path.dentry) {
 					audit_log_d_path(ab, " path=", &u->path);
 					break;
 				}
-				len = addr->len-sizeof(short);
-				p = &addr->name->sun_path[0];
+				if (!u->addr)
+					break;
+				len = u->addr->len-sizeof(short);
+				p = &u->addr->name->sun_path[0];
 				audit_log_format(ab, " path=");
 				if (*p)
 					audit_log_untrustedstring(ab, p);

@@ -1982,7 +1982,6 @@ static void do_attach(struct iommu_dev_data *dev_data,
 
 static void do_detach(struct iommu_dev_data *dev_data)
 {
-	struct protection_domain *domain = dev_data->domain;
 	struct amd_iommu *iommu;
 	u16 alias;
 
@@ -1998,6 +1997,10 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	iommu = amd_iommu_rlookup_table[dev_data->devid];
 	alias = dev_data->alias;
 
+	/* decrease reference counters */
+	dev_data->domain->dev_iommu[iommu->index] -= 1;
+	dev_data->domain->dev_cnt                 -= 1;
+
 	/* Update data structures */
 	dev_data->domain = NULL;
 	list_del(&dev_data->list);
@@ -2007,16 +2010,6 @@ static void do_detach(struct iommu_dev_data *dev_data)
 
 	/* Flush the DTE entry */
 	device_flush_dte(dev_data);
-
-	/* Flush IOTLB */
-	domain_flush_tlb_pde(domain);
-
-	/* Wait for the flushes to finish */
-	domain_flush_complete(domain);
-
-	/* decrease reference counters - needs to happen after the flushes */
-	domain->dev_iommu[iommu->index] -= 1;
-	domain->dev_cnt                 -= 1;
 }
 
 /*
@@ -2183,8 +2176,6 @@ static int attach_device(struct device *dev,
 	 * here to evict all dirty stuff.
 	 */
 	domain_flush_tlb_pde(domain);
-
-	domain_flush_complete(domain);
 
 	return ret;
 }
@@ -3625,7 +3616,7 @@ static struct irq_chip amd_ir_chip;
 
 #define DTE_IRQ_PHYS_ADDR_MASK	(((1ULL << 45)-1) << 6)
 #define DTE_IRQ_REMAP_INTCTL    (2ULL << 60)
-#define DTE_IRQ_TABLE_LEN       (9ULL << 1)
+#define DTE_IRQ_TABLE_LEN       (8ULL << 1)
 #define DTE_IRQ_REMAP_ENABLE    1ULL
 
 static void set_dte_irq_entry(u16 devid, struct irq_remap_table *table)

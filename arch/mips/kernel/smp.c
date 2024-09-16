@@ -25,7 +25,7 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
@@ -118,7 +118,7 @@ static inline void set_cpu_core_map(int cpu)
  * Calculate a new cpu_foreign_map mask whenever a
  * new cpu appears or disappears.
  */
-void calculate_cpu_foreign_map(void)
+static inline void calculate_cpu_foreign_map(void)
 {
 	int i, k, core_present;
 	cpumask_t temp_foreign_map;

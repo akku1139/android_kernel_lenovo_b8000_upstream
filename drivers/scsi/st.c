@@ -1267,8 +1267,8 @@ static int st_open(struct inode *inode, struct file *filp)
 	spin_lock(&st_use_lock);
 	if (STp->in_use) {
 		spin_unlock(&st_use_lock);
-		DEBC_printk(STp, "Device already in use.\n");
 		scsi_tape_put(STp);
+		DEBC_printk(STp, "Device already in use.\n");
 		return (-EBUSY);
 	}
 
@@ -4821,8 +4821,9 @@ static int sgl_map_user_pages(struct st_buffer *STbp,
 		current->mm,
 		uaddr,
 		nr_pages,
-		pages,
-		rw == READ ? FOLL_WRITE : 0); /* don't force */
+		rw == READ,
+		0, /* don't force */
+		pages);
 
 	/* Errors and no page mapped should return here */
 	if (res < nr_pages)

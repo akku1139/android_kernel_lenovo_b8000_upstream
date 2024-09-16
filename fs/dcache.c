@@ -278,8 +278,7 @@ void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry
 		spin_unlock(&dentry->d_lock);
 		name->name = p->name;
 	} else {
-		memcpy(name->inline_name, dentry->d_iname,
-		       dentry->d_name.len + 1);
+		memcpy(name->inline_name, dentry->d_iname, DNAME_INLINE_LEN);
 		spin_unlock(&dentry->d_lock);
 		name->name = name->inline_name;
 	}
@@ -1155,11 +1154,15 @@ static enum lru_status dentry_lru_isolate_shrink(struct list_head *item,
  */
 void shrink_dcache_sb(struct super_block *sb)
 {
+	long freed;
+
 	do {
 		LIST_HEAD(dispose);
 
-		list_lru_walk(&sb->s_dentry_lru,
+		freed = list_lru_walk(&sb->s_dentry_lru,
 			dentry_lru_isolate_shrink, &dispose, 1024);
+
+		this_cpu_sub(nr_dentry_unused, freed);
 		shrink_dentry_list(&dispose);
 		cond_resched();
 	} while (list_lru_count(&sb->s_dentry_lru) > 0);
@@ -1510,7 +1513,7 @@ static void check_and_drop(void *_data)
 {
 	struct detach_data *data = _data;
 
-	if (!data->mountpoint && list_empty(&data->select.dispose))
+	if (!data->mountpoint && !data->select.found)
 		__d_drop(data->select.start);
 }
 
@@ -1552,15 +1555,17 @@ void d_invalidate(struct dentry *dentry)
 
 		d_walk(dentry, &data, detach_and_collect, check_and_drop);
 
-		if (!list_empty(&data.select.dispose))
+		if (data.select.found)
 			shrink_dentry_list(&data.select.dispose);
-		else if (!data.mountpoint)
-			return;
 
 		if (data.mountpoint) {
 			detach_mounts(data.mountpoint);
 			dput(data.mountpoint);
 		}
+
+		if (!data.mountpoint && !data.select.found)
+			break;
+
 		cond_resched();
 	}
 }
@@ -1903,6 +1908,7 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	BUG_ON(!hlist_unhashed(&entry->d_u.d_alias));
 	BUG_ON(!inode);
 	lockdep_annotate_inode_mutex_key(inode);
+	security_d_instantiate(entry, inode);
 	spin_lock(&inode->i_lock);
 	__d_instantiate(entry, inode);
 	WARN_ON(!(inode->i_state & I_NEW));
@@ -1910,7 +1916,6 @@ void d_instantiate_new(struct dentry *entry, struct inode *inode)
 	smp_mb();
 	wake_up_bit(&inode->i_state, __I_NEW);
 	spin_unlock(&inode->i_lock);
-	security_d_instantiate(entry, inode);
 }
 EXPORT_SYMBOL(d_instantiate_new);
 
@@ -1949,12 +1954,10 @@ struct dentry *d_make_root(struct inode *root_inode)
 		static const struct qstr name = QSTR_INIT("/", 1);
 
 		res = __d_alloc(root_inode->i_sb, &name);
-		if (res) {
-			res->d_flags |= DCACHE_RCUACCESS;
+		if (res)
 			d_instantiate(res, root_inode);
-		} else {
+		else
 			iput(root_inode);
-		}
 	}
 	return res;
 }
@@ -3078,6 +3081,7 @@ char *d_absolute_path(const struct path *path,
 		return ERR_PTR(error);
 	return res;
 }
+EXPORT_SYMBOL(d_absolute_path);
 
 /*
  * same as __d_path but appends "(deleted)" for unlinked files.

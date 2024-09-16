@@ -1072,7 +1072,6 @@ void __init mem_init(void)
 	mem_init_print_info(NULL);
 }
 
-#ifdef CONFIG_DEBUG_RODATA
 const int rodata_test_data = 0xC3;
 EXPORT_SYMBOL_GPL(rodata_test_data);
 
@@ -1164,8 +1163,6 @@ void mark_rodata_ro(void)
 	debug_checkwx();
 }
 
-#endif
-
 int kern_addr_valid(unsigned long addr)
 {
 	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
@@ -1182,21 +1179,21 @@ int kern_addr_valid(unsigned long addr)
 		return 0;
 
 	pud = pud_offset(pgd, addr);
-	if (!pud_present(*pud))
+	if (pud_none(*pud))
 		return 0;
 
 	if (pud_large(*pud))
 		return pfn_valid(pud_pfn(*pud));
 
 	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd))
+	if (pmd_none(*pmd))
 		return 0;
 
 	if (pmd_large(*pmd))
 		return pfn_valid(pmd_pfn(*pmd));
 
 	pte = pte_offset_kernel(pmd, addr);
-	if (!pte_present(*pte))
+	if (pte_none(*pte))
 		return 0;
 
 	return pfn_valid(pte_pfn(*pte));

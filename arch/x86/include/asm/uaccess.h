@@ -146,11 +146,6 @@ extern int __get_user_bad(void);
 
 #define __uaccess_begin() stac()
 #define __uaccess_end()   clac()
-#define __uaccess_begin_nospec()	\
-({					\
-	stac();				\
-	barrier_nospec();		\
-})
 
 /*
  * This is a type: either unsigned long, if the argument fits into
@@ -314,7 +309,8 @@ do {									\
 		__put_user_asm(x, ptr, retval, "l", "k", "ir", errret);	\
 		break;							\
 	case 8:								\
-		__put_user_asm_u64(x, ptr, retval, errret);		\
+		__put_user_asm_u64((__typeof__(*ptr))(x), ptr, retval,	\
+				   errret);				\
 		break;							\
 	default:							\
 		__put_user_bad();					\
@@ -425,10 +421,8 @@ do {									\
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
 	int __pu_err;						\
-	__typeof__(*(ptr)) __pu_val;				\
-	__pu_val = x;						\
 	__uaccess_begin();					\
-	__put_user_size(__pu_val, (ptr), (size), __pu_err, -EFAULT);\
+	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
 	__uaccess_end();					\
 	__builtin_expect(__pu_err, 0);				\
 })
@@ -437,7 +431,7 @@ do {									\
 ({									\
 	int __gu_err;							\
 	unsigned long __gu_val;						\
-	__uaccess_begin_nospec();					\
+	__uaccess_begin();						\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
 	__uaccess_end();						\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
@@ -478,10 +472,6 @@ struct __large_struct { unsigned long buf[100]; };
 	current_thread_info()->uaccess_err = 0;				\
 	__uaccess_begin();						\
 	barrier();
-
-#define uaccess_try_nospec do {						\
-	current_thread_info()->uaccess_err = 0;				\
-	__uaccess_begin_nospec();					\
 
 #define uaccess_catch(err)						\
 	__uaccess_end();						\
@@ -547,7 +537,7 @@ struct __large_struct { unsigned long buf[100]; };
  *	get_user_ex(...);
  * } get_user_catch(err)
  */
-#define get_user_try		uaccess_try_nospec
+#define get_user_try		uaccess_try
 #define get_user_catch(err)	uaccess_catch(err)
 
 #define get_user_ex(x, ptr)	do {					\
@@ -582,7 +572,7 @@ extern void __cmpxchg_wrong_size(void)
 	__typeof__(ptr) __uval = (uval);				\
 	__typeof__(*(ptr)) __old = (old);				\
 	__typeof__(*(ptr)) __new = (new);				\
-	__uaccess_begin_nospec();					\
+	__uaccess_begin();						\
 	switch (size) {							\
 	case 1:								\
 	{								\
@@ -726,7 +716,7 @@ __copy_from_user_overflow(int size, unsigned long count)
 
 #endif
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(to);
@@ -751,9 +741,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	 * case, and do only runtime checking for non-constant sizes.
 	 */
 
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(to, n, false);
 		n = _copy_from_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_from_user_overflow();
 	else
 		__copy_from_user_overflow(sz, n);
@@ -761,7 +752,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-static inline unsigned long __must_check
+static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	int sz = __compiletime_object_size(from);
@@ -769,9 +760,10 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	might_fault();
 
 	/* See the comment in copy_from_user() above. */
-	if (likely(sz < 0 || sz >= n))
+	if (likely(sz < 0 || sz >= n)) {
+		check_object_size(from, n, true);
 		n = _copy_to_user(to, from, n);
-	else if(__builtin_constant_p(n))
+	} else if (__builtin_constant_p(n))
 		copy_to_user_overflow();
 	else
 		__copy_to_user_overflow(sz, n);
@@ -781,6 +773,31 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 
 #undef __copy_from_user_overflow
 #undef __copy_to_user_overflow
+
+/*
+ * The "unsafe" user accesses aren't really "unsafe", but the naming
+ * is a big fat warning: you have to not only do the access_ok()
+ * checking before using them, but you have to surround them with the
+ * user_access_begin/end() pair.
+ */
+#define user_access_begin()	__uaccess_begin()
+#define user_access_end()	__uaccess_end()
+
+#define unsafe_put_user(x, ptr, err_label)					\
+do {										\
+	int __pu_err;								\
+	__put_user_size((x), (ptr), sizeof(*(ptr)), __pu_err, -EFAULT);		\
+	if (unlikely(__pu_err)) goto err_label;					\
+} while (0)
+
+#define unsafe_get_user(x, ptr, err_label)					\
+do {										\
+	int __gu_err;								\
+	unsigned long __gu_val;							\
+	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), __gu_err, -EFAULT);	\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
+	if (unlikely(__gu_err)) goto err_label;					\
+} while (0)
 
 #endif /* _ASM_X86_UACCESS_H */
 

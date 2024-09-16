@@ -313,9 +313,6 @@ static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
 	return 0;
 }
 
-/* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
- * applies. Returns 1 if a quirk was found.
- */
 static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 					 struct usb_device *dev,
 					 struct usb_interface_descriptor *altsd,
@@ -324,7 +321,6 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	struct usb_host_interface *alts;
 	struct usb_interface *iface;
 	unsigned int ep;
-	unsigned int ifnum;
 
 	/* Implicit feedback sync EPs consumers are always playback EPs */
 	if (subs->direction != SNDRV_PCM_STREAM_PLAYBACK)
@@ -333,21 +329,35 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	switch (subs->stream->chip->usb_id) {
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
 	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
-	case USB_ID(0x22f0, 0x0006): /* Allen&Heath Qu-16 */
 		ep = 0x81;
-		ifnum = 3;
-		goto add_sync_ep_from_ifnum;
+		iface = usb_ifnum_to_if(dev, 3);
+
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
+
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
+		break;
 	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
 	case USB_ID(0x0763, 0x2081):
 		ep = 0x81;
-		ifnum = 2;
-		goto add_sync_ep_from_ifnum;
+		iface = usb_ifnum_to_if(dev, 2);
+
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
+
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
 	case USB_ID(0x1397, 0x0002):
 		ep = 0x81;
-		ifnum = 1;
-		goto add_sync_ep_from_ifnum;
-	}
+		iface = usb_ifnum_to_if(dev, 1);
 
+		if (!iface || iface->num_altsetting == 0)
+			return -EINVAL;
+
+		alts = &iface->altsetting[1];
+		goto add_sync_ep;
+	}
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
 	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
 	    altsd->bInterfaceProtocol == 2 &&
@@ -362,14 +372,6 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	/* No quirk */
 	return 0;
 
-add_sync_ep_from_ifnum:
-	iface = usb_ifnum_to_if(dev, ifnum);
-
-	if (!iface || iface->num_altsetting < 2)
-		return -EINVAL;
-
-	alts = &iface->altsetting[1];
-
 add_sync_ep:
 	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
 						   alts, ep, !subs->direction,
@@ -379,7 +381,7 @@ add_sync_ep:
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
-	return 1;
+	return 0;
 }
 
 static int set_sync_endpoint(struct snd_usb_substream *subs,
@@ -418,10 +420,6 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	if (err < 0)
 		return err;
 
-	/* endpoint set by quirk */
-	if (err > 0)
-		return 0;
-
 	if (altsd->bNumEndpoints < 2)
 		return 0;
 
@@ -455,7 +453,6 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	}
 	ep = get_endpoint(alts, 1)->bEndpointAddress;
 	if (get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
-	    get_endpoint(alts, 0)->bSynchAddress != 0 &&
 	    ((is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress | USB_DIR_IN)) ||
 	     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)))) {
 		dev_err(&dev->dev,
@@ -1297,12 +1294,6 @@ static void retire_capture_urb(struct snd_usb_substream *subs,
 			// continue;
 		}
 		bytes = urb->iso_frame_desc[i].actual_length;
-		if (subs->stream_offset_adj > 0) {
-			unsigned int adj = min(subs->stream_offset_adj, bytes);
-			cp += adj;
-			bytes -= adj;
-			subs->stream_offset_adj -= adj;
-		}
 		frames = bytes / stride;
 		if (!subs->txfr_quirk)
 			bytes = frames * stride;

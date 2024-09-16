@@ -118,14 +118,12 @@ static void iot_io_end(struct io_tracker *iot, sector_t len)
  */
 struct dm_hook_info {
 	bio_end_io_t *bi_end_io;
-	void *bi_private;
 };
 
 static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
 			bio_end_io_t *bi_end_io, void *bi_private)
 {
 	h->bi_end_io = bio->bi_end_io;
-	h->bi_private = bio->bi_private;
 
 	bio->bi_end_io = bi_end_io;
 	bio->bi_private = bi_private;
@@ -134,7 +132,6 @@ static void dm_hook_bio(struct dm_hook_info *h, struct bio *bio,
 static void dm_unhook_bio(struct dm_hook_info *h, struct bio *bio)
 {
 	bio->bi_end_io = h->bi_end_io;
-	bio->bi_private = h->bi_private;
 }
 
 /*----------------------------------------------------------------*/
@@ -2193,8 +2190,8 @@ static void wait_for_migrations(struct cache *cache)
 
 static void stop_worker(struct cache *cache)
 {
-	cancel_delayed_work_sync(&cache->waker);
-	drain_workqueue(cache->wq);
+	cancel_delayed_work(&cache->waker);
+	flush_workqueue(cache->wq);
 }
 
 static void requeue_deferred_cells(struct cache *cache)
@@ -3391,13 +3388,8 @@ static dm_cblock_t get_cache_dev_size(struct cache *cache)
 
 static bool can_resize(struct cache *cache, dm_cblock_t new_size)
 {
-	if (from_cblock(new_size) > from_cblock(cache->cache_size)) {
-		if (cache->sized) {
-			DMERR("%s: unable to extend cache due to missing cache table reload",
-			      cache_device_name(cache));
-			return false;
-		}
-	}
+	if (from_cblock(new_size) > from_cblock(cache->cache_size))
+		return true;
 
 	/*
 	 * We can't drop a dirty block when shrinking the cache.

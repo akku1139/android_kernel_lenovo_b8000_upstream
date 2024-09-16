@@ -220,7 +220,7 @@ static inline void hrtimer_set_expires_range(struct hrtimer *timer, ktime_t time
 	timer->node.expires = ktime_add_safe(time, delta);
 }
 
-static inline void hrtimer_set_expires_range_ns(struct hrtimer *timer, ktime_t time, unsigned long delta)
+static inline void hrtimer_set_expires_range_ns(struct hrtimer *timer, ktime_t time, u64 delta)
 {
 	timer->_softexpires = time;
 	timer->node.expires = ktime_add_safe(time, ns_to_ktime(delta));
@@ -378,7 +378,7 @@ static inline void destroy_hrtimer_on_stack(struct hrtimer *timer) { }
 
 /* Basic timer operations: */
 extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
-			unsigned long range_ns, const enum hrtimer_mode mode);
+				   u64 range_ns, const enum hrtimer_mode mode);
 
 /**
  * hrtimer_start - (re)start an hrtimer on the current CPU
@@ -399,7 +399,7 @@ extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 static inline void hrtimer_start_expires(struct hrtimer *timer,
 					 enum hrtimer_mode mode)
 {
-	unsigned long delta;
+	u64 delta;
 	ktime_t soft, hard;
 	soft = hrtimer_get_softexpires(timer);
 	hard = hrtimer_get_expires(timer);
@@ -424,18 +424,12 @@ extern u64 hrtimer_get_next_event(void);
 
 extern bool hrtimer_active(const struct hrtimer *timer);
 
-/**
- * hrtimer_is_queued = check, whether the timer is on one of the queues
- * @timer:	Timer to check
- *
- * Returns: True if the timer is queued, false otherwise
- *
- * The function can be used lockless, but it gives only a current snapshot.
+/*
+ * Helper function to check, whether the timer is on one of the queues
  */
-static inline bool hrtimer_is_queued(struct hrtimer *timer)
+static inline int hrtimer_is_queued(struct hrtimer *timer)
 {
-	/* The READ_ONCE pairs with the update functions of timer->state */
-	return !!(READ_ONCE(timer->state) & HRTIMER_STATE_ENQUEUED);
+	return timer->state & HRTIMER_STATE_ENQUEUED;
 }
 
 /*
@@ -483,10 +477,12 @@ extern long hrtimer_nanosleep_restart(struct restart_block *restart_block);
 extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 				 struct task_struct *tsk);
 
-extern int schedule_hrtimeout_range(ktime_t *expires, unsigned long delta,
+extern int schedule_hrtimeout_range(ktime_t *expires, u64 delta,
 						const enum hrtimer_mode mode);
 extern int schedule_hrtimeout_range_clock(ktime_t *expires,
-		unsigned long delta, const enum hrtimer_mode mode, int clock);
+					  u64 delta,
+					  const enum hrtimer_mode mode,
+					  int clock);
 extern int schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode mode);
 
 /* Soft interrupt function to run the hrtimer queues: */

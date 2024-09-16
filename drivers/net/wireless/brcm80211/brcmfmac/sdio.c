@@ -1394,17 +1394,6 @@ static inline u8 brcmf_sdio_getdatoffset(u8 *swheader)
 	return (u8)((hdrvalue & SDPCM_DOFFSET_MASK) >> SDPCM_DOFFSET_SHIFT);
 }
 
-static inline bool brcmf_sdio_fromevntchan(u8 *swheader)
-{
-	u32 hdrvalue;
-	u8 ret;
-
-	hdrvalue = *(u32 *)swheader;
-	ret = (u8)((hdrvalue & SDPCM_CHANNEL_MASK) >> SDPCM_CHANNEL_SHIFT);
-
-	return (ret == SDPCM_EVENT_CHANNEL);
-}
-
 static int brcmf_sdio_hdparse(struct brcmf_sdio *bus, u8 *header,
 			      struct brcmf_sdio_hdrinfo *rd,
 			      enum brcmf_sdio_frmtype type)
@@ -1765,11 +1754,7 @@ static u8 brcmf_sdio_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 					   pfirst->len, pfirst->next,
 					   pfirst->prev);
 			skb_unlink(pfirst, &bus->glom);
-			if (brcmf_sdio_fromevntchan(&dptr[SDPCM_HWHDR_LEN]))
-				brcmf_rx_event(bus->sdiodev->dev, pfirst);
-			else
-				brcmf_rx_frame(bus->sdiodev->dev, pfirst,
-					       false);
+			brcmf_rx_frame(bus->sdiodev->dev, pfirst);
 			bus->sdcnt.rxglompkts++;
 		}
 
@@ -2027,7 +2012,6 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 					       BRCMF_SDIO_FT_NORMAL)) {
 				rd->len = 0;
 				brcmu_pkt_buf_free_skb(pkt);
-				continue;
 			}
 			bus->sdcnt.rx_readahead_cnt++;
 			if (rd->len != roundup(rd_new.len, 16)) {
@@ -2097,19 +2081,18 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 		__skb_trim(pkt, rd->len);
 		skb_pull(pkt, rd->dat_offset);
 
-		if (pkt->len == 0)
-			brcmu_pkt_buf_free_skb(pkt);
-		else if (rd->channel == SDPCM_EVENT_CHANNEL)
-			brcmf_rx_event(bus->sdiodev->dev, pkt);
-		else
-			brcmf_rx_frame(bus->sdiodev->dev, pkt,
-				       false);
-
 		/* prepare the descriptor for the next read */
 		rd->len = rd->len_nxtfrm << 4;
 		rd->len_nxtfrm = 0;
 		/* treat all packet as event if we don't know */
 		rd->channel = SDPCM_EVENT_CHANNEL;
+
+		if (pkt->len == 0) {
+			brcmu_pkt_buf_free_skb(pkt);
+			continue;
+		}
+
+		brcmf_rx_frame(bus->sdiodev->dev, pkt);
 	}
 
 	rxcount = maxframes - rxleft;
@@ -3418,10 +3401,6 @@ static int brcmf_sdio_download_firmware(struct brcmf_sdio *bus,
 		goto err;
 	}
 
-	/* Allow full data communication using DPC from now on. */
-	brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DATA);
-	bcmerror = 0;
-
 err:
 	brcmf_sdio_clkctl(bus, CLK_SDONLY, false);
 	sdio_release_host(bus->sdiodev->func[1]);
@@ -4129,6 +4108,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev,
 	}
 
 	if (err == 0) {
+		/* Allow full data communication using DPC from now on. */
+		brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DATA);
+
 		err = brcmf_sdiod_intr_register(sdiodev);
 		if (err != 0)
 			brcmf_err("intr register failed:%d\n", err);
@@ -4308,13 +4290,6 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (bus) {
-		/* Stop watchdog task */
-		if (bus->watchdog_tsk) {
-			send_sig(SIGTERM, bus->watchdog_tsk, 1);
-			kthread_stop(bus->watchdog_tsk);
-			bus->watchdog_tsk = NULL;
-		}
-
 		/* De-register interrupt handler */
 		brcmf_sdiod_intr_unregister(bus->sdiodev);
 

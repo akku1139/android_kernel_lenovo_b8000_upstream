@@ -133,7 +133,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
 #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
 			  SLAB_TEMPORARY | SLAB_NOTRACK)
 #else
-#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE)
+#define SLAB_CACHE_FLAGS (0)
 #endif
 
 #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
@@ -370,5 +370,7 @@ void *slab_start(struct seq_file *m, loff_t *pos);
 void *slab_next(struct seq_file *m, void *p, loff_t *pos);
 void slab_stop(struct seq_file *m, void *p);
 int memcg_slab_show(struct seq_file *m, void *p);
+
+void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
 
 #endif /* MM_SLAB_H */

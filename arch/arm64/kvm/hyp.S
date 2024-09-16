@@ -494,7 +494,7 @@
 .endm
 
 .macro deactivate_traps
-	mov_q	x2, HCR_HOST_NVHE_FLAGS
+	mov	x2, #HCR_RW
 	msr	hcr_el2, x2
 	msr	hstr_el2, xzr
 
@@ -923,7 +923,7 @@ __hyp_panic_str:
 	.align	2
 
 /*
- * u64 kvm_call_hyp(void *hypfn, ...);
+ * u64 __kvm_call_hyp(void *hypfn, ...);
  *
  * This is not really a variadic function in the classic C-way and care must
  * be taken when calling this to ensure parameters are passed in registers
@@ -940,10 +940,10 @@ __hyp_panic_str:
  * used to implement __hyp_get_vectors in the same way as in
  * arch/arm64/kernel/hyp_stub.S.
  */
-ENTRY(kvm_call_hyp)
+ENTRY(__kvm_call_hyp)
 	hvc	#0
 	ret
-ENDPROC(kvm_call_hyp)
+ENDPROC(__kvm_call_hyp)
 
 .macro invalid_vector	label, target
 	.align	2

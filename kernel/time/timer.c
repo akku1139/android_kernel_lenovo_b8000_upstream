@@ -42,7 +42,6 @@
 #include <linux/sched/sysctl.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
-#include <linux/random.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -1706,10 +1705,10 @@ EXPORT_SYMBOL(msleep_interruptible);
 static void __sched do_usleep_range(unsigned long min, unsigned long max)
 {
 	ktime_t kmin;
-	unsigned long delta;
+	u64 delta;
 
 	kmin = ktime_set(0, min * NSEC_PER_USEC);
-	delta = (max - min) * NSEC_PER_USEC;
+	delta = (u64)(max - min) * NSEC_PER_USEC;
 	schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
 }
 

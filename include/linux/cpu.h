@@ -48,15 +48,6 @@ extern ssize_t cpu_show_spectre_v2(struct device *dev,
 				   struct device_attribute *attr, char *buf);
 extern ssize_t cpu_show_spec_store_bypass(struct device *dev,
 					  struct device_attribute *attr, char *buf);
-extern ssize_t cpu_show_l1tf(struct device *dev,
-			     struct device_attribute *attr, char *buf);
-extern ssize_t cpu_show_mds(struct device *dev,
-			    struct device_attribute *attr, char *buf);
-extern ssize_t cpu_show_tsx_async_abort(struct device *dev,
-					struct device_attribute *attr,
-					char *buf);
-extern ssize_t cpu_show_itlb_multihit(struct device *dev,
-				      struct device_attribute *attr, char *buf);
 
 extern __printf(4, 5)
 struct device *cpu_device_create(struct device *parent, void *drvdata,
@@ -301,21 +292,11 @@ bool cpu_wait_death(unsigned int cpu, int seconds);
 bool cpu_report_death(void);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
-/*
- * These are used for a global "mitigations=" cmdline option for toggling
- * optional CPU mitigations.
- */
-enum cpu_mitigations {
-	CPU_MITIGATIONS_OFF,
-	CPU_MITIGATIONS_AUTO,
-};
+#define IDLE_START 1
+#define IDLE_END 2
 
-extern enum cpu_mitigations cpu_mitigations;
-
-/* mitigations=off */
-static inline bool cpu_mitigations_off(void)
-{
-	return cpu_mitigations == CPU_MITIGATIONS_OFF;
-}
+void idle_notifier_register(struct notifier_block *n);
+void idle_notifier_unregister(struct notifier_block *n);
+void idle_notifier_call_chain(unsigned long val);
 
 #endif /* _LINUX_CPU_H_ */

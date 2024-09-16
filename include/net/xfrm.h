@@ -159,6 +159,7 @@ struct xfrm_state {
 		int		header_len;
 		int		trailer_len;
 		u32		extra_flags;
+		u32		output_mark;
 	} props;
 
 	struct xfrm_lifetime_cfg lft;
@@ -288,10 +289,12 @@ struct xfrm_policy_afinfo {
 	struct dst_entry	*(*dst_lookup)(struct net *net,
 					       int tos, int oif,
 					       const xfrm_address_t *saddr,
-					       const xfrm_address_t *daddr);
+					       const xfrm_address_t *daddr,
+					       u32 mark);
 	int			(*get_saddr)(struct net *net, int oif,
 					     xfrm_address_t *saddr,
-					     xfrm_address_t *daddr);
+					     xfrm_address_t *daddr,
+					     u32 mark);
 	void			(*decode_session)(struct sk_buff *skb,
 						  struct flowi *fl,
 						  int reverse);
@@ -1301,23 +1304,6 @@ static inline int xfrm_state_kern(const struct xfrm_state *x)
 	return atomic_read(&x->tunnel_users);
 }
 
-static inline bool xfrm_id_proto_valid(u8 proto)
-{
-	switch (proto) {
-	case IPPROTO_AH:
-	case IPPROTO_ESP:
-	case IPPROTO_COMP:
-#if IS_ENABLED(CONFIG_IPV6)
-	case IPPROTO_ROUTING:
-	case IPPROTO_DSTOPTS:
-#endif
-		return true;
-	default:
-		return false;
-	}
-}
-
-/* IPSEC_PROTO_ANY only matches 3 IPsec protocols, 0 could match all. */
 static inline int xfrm_id_proto_match(u8 proto, u8 userproto)
 {
 	return (!userproto || proto == userproto ||
@@ -1551,10 +1537,8 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 void xfrm4_local_error(struct sk_buff *skb, u32 mtu);
 int xfrm6_extract_header(struct sk_buff *skb);
 int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
-int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi,
-		  struct ip6_tnl *t);
+int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
 int xfrm6_transport_finish(struct sk_buff *skb, int async);
-int xfrm6_rcv_tnl(struct sk_buff *skb, struct ip6_tnl *t);
 int xfrm6_rcv(struct sk_buff *skb);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto);
@@ -1730,17 +1714,21 @@ static inline int xfrm_replay_state_esn_len(struct xfrm_replay_state_esn *replay
 static inline int xfrm_replay_clone(struct xfrm_state *x,
 				     struct xfrm_state *orig)
 {
-
-	x->replay_esn = kmemdup(orig->replay_esn,
-				xfrm_replay_state_esn_len(orig->replay_esn),
+	x->replay_esn = kzalloc(xfrm_replay_state_esn_len(orig->replay_esn),
 				GFP_KERNEL);
 	if (!x->replay_esn)
 		return -ENOMEM;
-	x->preplay_esn = kmemdup(orig->preplay_esn,
-				 xfrm_replay_state_esn_len(orig->preplay_esn),
+
+	x->replay_esn->bmp_len = orig->replay_esn->bmp_len;
+	x->replay_esn->replay_window = orig->replay_esn->replay_window;
+
+	x->preplay_esn = kmemdup(x->replay_esn,
+				 xfrm_replay_state_esn_len(x->replay_esn),
 				 GFP_KERNEL);
-	if (!x->preplay_esn)
+	if (!x->preplay_esn) {
+		kfree(x->replay_esn);
 		return -ENOMEM;
+	}
 
 	return 0;
 }

@@ -217,7 +217,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	extern void scsi_requeue_run_queue(struct work_struct *work);
 
 	sdev = kzalloc(sizeof(*sdev) + shost->transportt->device_size,
-		       GFP_KERNEL);
+		       GFP_ATOMIC);
 	if (!sdev)
 		goto out;
 
@@ -381,12 +381,11 @@ static void scsi_target_reap_ref_release(struct kref *kref)
 		= container_of(kref, struct scsi_target, reap_ref);
 
 	/*
-	 * if we get here and the target is still in a CREATED state that
+	 * if we get here and the target is still in the CREATED state that
 	 * means it was allocated but never made visible (because a scan
 	 * turned up no LUNs), so don't call device_del() on it.
 	 */
-	if ((starget->state != STARGET_CREATED) &&
-	    (starget->state != STARGET_CREATED_REMOVE)) {
+	if (starget->state != STARGET_CREATED) {
 		transport_remove_device(&starget->dev);
 		device_del(&starget->dev);
 	}
@@ -457,8 +456,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 		error = shost->hostt->target_alloc(starget);
 
 		if(error) {
-			if (error != -ENXIO)
-				dev_err(dev, "target allocation failed, error %d\n", error);
+			dev_printk(KERN_ERR, dev, "target allocation failed, error %d\n", error);
 			/* don't want scsi_target_reap to do the final
 			 * put because it will be under the host lock */
 			scsi_target_destroy(starget);
@@ -792,7 +790,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 */
 	sdev->inquiry = kmemdup(inq_result,
 				max_t(size_t, sdev->inquiry_len, 36),
-				GFP_KERNEL);
+				GFP_ATOMIC);
 	if (sdev->inquiry == NULL)
 		return SCSI_SCAN_NO_RESPONSE;
 
@@ -1086,7 +1084,7 @@ static int scsi_probe_and_add_lun(struct scsi_target *starget,
 	if (!sdev)
 		goto out;
 
-	result = kmalloc(result_len, GFP_KERNEL |
+	result = kmalloc(result_len, GFP_ATOMIC |
 			((shost->unchecked_isa_dma) ? __GFP_DMA : 0));
 	if (!result)
 		goto out_free_sdev;
@@ -1711,16 +1709,15 @@ static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
  */
 static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 {
-	struct async_scan_data *data = NULL;
+	struct async_scan_data *data;
 	unsigned long flags;
 
 	if (strncmp(scsi_scan_type, "sync", 4) == 0)
 		return NULL;
 
-	mutex_lock(&shost->scan_mutex);
 	if (shost->async_scan) {
 		shost_printk(KERN_DEBUG, shost, "%s called twice\n", __func__);
-		goto err;
+		return NULL;
 	}
 
 	data = kmalloc(sizeof(*data), GFP_KERNEL);
@@ -1731,6 +1728,7 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 		goto err;
 	init_completion(&data->prev_finished);
 
+	mutex_lock(&shost->scan_mutex);
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->async_scan = 1;
 	spin_unlock_irqrestore(shost->host_lock, flags);
@@ -1745,7 +1743,6 @@ static struct async_scan_data *scsi_prep_async_scan(struct Scsi_Host *shost)
 	return data;
 
  err:
-	mutex_unlock(&shost->scan_mutex);
 	kfree(data);
 	return NULL;
 }

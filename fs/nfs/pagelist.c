@@ -593,7 +593,7 @@ static void nfs_pgio_rpcsetup(struct nfs_pgio_header *hdr,
 	}
 
 	hdr->res.fattr   = &hdr->fattr;
-	hdr->res.count   = 0;
+	hdr->res.count   = count;
 	hdr->res.eof     = 0;
 	hdr->res.verf    = &hdr->verf;
 	nfs_fattr_init(&hdr->fattr);
@@ -872,9 +872,6 @@ static int nfs_pageio_setup_mirroring(struct nfs_pageio_descriptor *pgio,
 
 	mirror_count = pgio->pg_ops->pg_get_mirror_count(pgio, req);
 
-	if (pgio->pg_error < 0)
-		return pgio->pg_error;
-
 	if (!mirror_count || mirror_count > NFS_PAGEIO_DESCRIPTOR_MIRROR_MAX)
 		return -EINVAL;
 
@@ -884,6 +881,15 @@ static int nfs_pageio_setup_mirroring(struct nfs_pageio_descriptor *pgio,
 	pgio->pg_mirror_count = mirror_count;
 
 	return 0;
+}
+
+/*
+ * nfs_pageio_stop_mirroring - stop using mirroring (set mirror count to 1)
+ */
+void nfs_pageio_stop_mirroring(struct nfs_pageio_descriptor *pgio)
+{
+	pgio->pg_mirror_count = 1;
+	pgio->pg_mirror_idx = 0;
 }
 
 static void nfs_pageio_cleanup_mirroring(struct nfs_pageio_descriptor *pgio)
@@ -974,8 +980,6 @@ static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 	} else {
 		if (desc->pg_ops->pg_init)
 			desc->pg_ops->pg_init(desc, req);
-		if (desc->pg_error < 0)
-			return 0;
 		mirror->pg_base = req->wb_pgbase;
 	}
 	if (!nfs_can_coalesce_requests(prev, req, desc))
@@ -993,16 +997,17 @@ static void nfs_pageio_doio(struct nfs_pageio_descriptor *desc)
 {
 	struct nfs_pgio_mirror *mirror = nfs_pgio_current_mirror(desc);
 
+
 	if (!list_empty(&mirror->pg_list)) {
 		int error = desc->pg_ops->pg_doio(desc);
 		if (error < 0)
 			desc->pg_error = error;
-		if (list_empty(&mirror->pg_list)) {
+		else
 			mirror->pg_bytes_written += mirror->pg_count;
-			mirror->pg_count = 0;
-			mirror->pg_base = 0;
-			mirror->pg_recoalesce = 0;
-		}
+	}
+	if (list_empty(&mirror->pg_list)) {
+		mirror->pg_count = 0;
+		mirror->pg_base = 0;
 	}
 }
 
@@ -1088,6 +1093,7 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 
 	do {
 		list_splice_init(&mirror->pg_list, &head);
+		mirror->pg_bytes_written -= mirror->pg_count;
 		mirror->pg_count = 0;
 		mirror->pg_base = 0;
 		mirror->pg_recoalesce = 0;
@@ -1096,6 +1102,7 @@ static int nfs_do_recoalesce(struct nfs_pageio_descriptor *desc)
 			struct nfs_page *req;
 
 			req = list_first_entry(&head, struct nfs_page, wb_list);
+			nfs_list_remove_request(req);
 			if (__nfs_pageio_add_request(desc, req))
 				continue;
 			if (desc->pg_error < 0) {
@@ -1138,8 +1145,6 @@ int nfs_pageio_add_request(struct nfs_pageio_descriptor *desc,
 	bytes = req->wb_bytes;
 
 	nfs_pageio_setup_mirroring(desc, req);
-	if (desc->pg_error < 0)
-		return 0;
 
 	for (midx = 0; midx < desc->pg_mirror_count; midx++) {
 		if (midx) {
@@ -1191,7 +1196,7 @@ static void nfs_pageio_complete_mirror(struct nfs_pageio_descriptor *desc,
 		desc->pg_mirror_idx = mirror_idx;
 	for (;;) {
 		nfs_pageio_doio(desc);
-		if (desc->pg_error < 0 || !mirror->pg_recoalesce)
+		if (!mirror->pg_recoalesce)
 			break;
 		if (!nfs_do_recoalesce(desc))
 			break;
@@ -1225,7 +1230,7 @@ int nfs_pageio_resend(struct nfs_pageio_descriptor *desc,
 	nfs_pageio_complete(desc);
 	if (!list_empty(&failed)) {
 		list_move(&failed, &hdr->pages);
-		return desc->pg_error < 0 ? desc->pg_error : -EIO;
+		return -EIO;
 	}
 	return 0;
 }
@@ -1274,14 +1279,6 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
 			}
 		}
 	}
-}
-
-/*
- * nfs_pageio_stop_mirroring - stop using mirroring (set mirror count to 1)
- */
-void nfs_pageio_stop_mirroring(struct nfs_pageio_descriptor *pgio)
-{
-	nfs_pageio_complete(pgio);
 }
 
 int __init nfs_init_nfspagecache(void)

@@ -646,17 +646,12 @@ int ieee80211_key_link(struct ieee80211_key *key,
 		       struct sta_info *sta)
 {
 	struct ieee80211_local *local = sdata->local;
-	static atomic_t key_color = ATOMIC_INIT(0);
 	struct ieee80211_key *old_key;
-	int idx = key->conf.keyidx;
-	bool pairwise = key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE;
-	/*
-	 * We want to delay tailroom updates only for station - in that
-	 * case it helps roaming speed, but in other cases it hurts and
-	 * can cause warnings to appear.
-	 */
-	bool delay_tailroom = sdata->vif.type == NL80211_IFTYPE_STATION;
-	int ret;
+	int idx, ret;
+	bool pairwise;
+
+	pairwise = key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE;
+	idx = key->conf.keyidx;
 
 	mutex_lock(&sdata->local->key_mtx);
 
@@ -681,23 +676,17 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	key->sdata = sdata;
 	key->sta = sta;
 
-	/*
-	 * Assign a unique ID to every key so we can easily prevent mixed
-	 * key and fragment cache attacks.
-	 */
-	key->color = atomic_inc_return(&key_color);
-
 	increment_tailroom_need_count(sdata);
 
 	ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
-	ieee80211_key_destroy(old_key, delay_tailroom);
+	ieee80211_key_destroy(old_key, true);
 
 	ieee80211_debugfs_key_add(key);
 
 	if (!local->wowlan) {
 		ret = ieee80211_key_enable_hw_accel(key);
 		if (ret)
-			ieee80211_key_free(key, delay_tailroom);
+			ieee80211_key_free(key, true);
 	} else {
 		ret = 0;
 	}
@@ -885,8 +874,7 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-		__ieee80211_key_destroy(key, key->sdata->vif.type ==
-					NL80211_IFTYPE_STATION);
+		__ieee80211_key_destroy(key, true);
 	}
 
 	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
@@ -896,8 +884,7 @@ void ieee80211_free_sta_keys(struct ieee80211_local *local,
 		ieee80211_key_replace(key->sdata, key->sta,
 				key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE,
 				key, NULL);
-		__ieee80211_key_destroy(key, key->sdata->vif.type ==
-					NL80211_IFTYPE_STATION);
+		__ieee80211_key_destroy(key, true);
 	}
 
 	mutex_unlock(&local->key_mtx);

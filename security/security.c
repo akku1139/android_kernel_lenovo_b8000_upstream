@@ -130,25 +130,25 @@ int __init security_module_enable(const char *module)
 
 /* Security operations */
 
-int security_binder_set_context_mgr(const struct cred *mgr)
+int security_binder_set_context_mgr(struct task_struct *mgr)
 {
 	return call_int_hook(binder_set_context_mgr, 0, mgr);
 }
 
-int security_binder_transaction(const struct cred *from,
-				const struct cred *to)
+int security_binder_transaction(struct task_struct *from,
+				struct task_struct *to)
 {
 	return call_int_hook(binder_transaction, 0, from, to);
 }
 
-int security_binder_transfer_binder(const struct cred *from,
-				    const struct cred *to)
+int security_binder_transfer_binder(struct task_struct *from,
+				    struct task_struct *to)
 {
 	return call_int_hook(binder_transfer_binder, 0, from, to);
 }
 
-int security_binder_transfer_file(const struct cred *from,
-				  const struct cred *to, struct file *file)
+int security_binder_transfer_file(struct task_struct *from,
+				  struct task_struct *to, struct file *file)
 {
 	return call_int_hook(binder_transfer_file, 0, from, to, file);
 }
@@ -498,6 +498,7 @@ int security_path_chown(struct path *path, kuid_t uid, kgid_t gid)
 		return 0;
 	return call_int_hook(path_chown, 0, path, uid, gid);
 }
+EXPORT_SYMBOL(security_path_chown);
 
 int security_path_chroot(struct path *path)
 {
@@ -861,13 +862,6 @@ int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 
 void security_cred_free(struct cred *cred)
 {
-	/*
-	 * There is a failure case in prepare_creds() that
-	 * may result in a call here with ->security being NULL.
-	 */
-	if (unlikely(cred->security == NULL))
-		return;
-
 	call_void_hook(cred_free, cred);
 }
 

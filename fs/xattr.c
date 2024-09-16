@@ -70,7 +70,7 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 			return -EPERM;
 	}
 
-	return inode_permission(inode, mask);
+	return inode_permission2(ERR_PTR(-EOPNOTSUPP), inode, mask);
 }
 
 /**
@@ -453,7 +453,7 @@ getxattr(struct dentry *d, const char __user *name, void __user *value,
 	if (error > 0) {
 		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
 		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
-			posix_acl_fix_xattr_to_user(kvalue, error);
+			posix_acl_fix_xattr_to_user(kvalue, size);
 		if (size && copy_to_user(value, kvalue, error))
 			error = -EFAULT;
 	} else if (error == -ERANGE && size >= XATTR_SIZE_MAX) {
@@ -735,8 +735,6 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 
 	if (!buffer) {
 		for_each_xattr_handler(handlers, handler) {
-			if (!handler->list)
-				continue;
 			size += handler->list(handler, dentry, NULL, 0,
 					      NULL, 0);
 		}
@@ -744,8 +742,6 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 		char *buf = buffer;
 
 		for_each_xattr_handler(handlers, handler) {
-			if (!handler->list)
-				continue;
 			size = handler->list(handler, dentry, buf, buffer_size,
 					     NULL, 0);
 			if (size > buffer_size)
