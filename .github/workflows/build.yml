@@ -37,7 +37,9 @@ jobs:
           sudo ln -sf /usr/bin/python2 /usr/bin/python
 
       - name: Mediatek Config
-        run: make mediatek-configs
+        run: |
+          source ./mediatek/build/shell.sh ./ kernel
+          make mediatek-configs
 
       - name: Config
         run: make oldconfig
