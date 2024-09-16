@@ -32,9 +32,8 @@ jobs:
 
       - name: Setup env
         run: |
-          sudo apt-get -y install python2
           sudo ln -sf /usr/bin/bash /usr/bin/sh
-          sudo ln -sf /usr/bin/python2 /usr/bin/python
+          echo `pwd`/toolchain/Python-2.7.18 >> $GITHUB_PATH
 
       - name: Mediatek Config
         run: |
