@@ -22,9 +22,9 @@ static void __init mt6589_timer_init(void)
         clock->init_func();
 
         if (clock->clocksource.name) {
-            err = clocksource_register(&(clock->clocksource));
+            err = __clocksource_register(&(clock->clocksource));
             if (err) {
-                pr_err("mt6589_timer_init: clocksource_register failed for %s\n", clock->clocksource.name);
+                pr_err("mt6589_timer_init: __clocksource_register failed for %s\n", clock->clocksource.name);
             }
         }
 
