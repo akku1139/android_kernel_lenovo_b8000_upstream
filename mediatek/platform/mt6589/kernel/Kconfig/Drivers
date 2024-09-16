@@ -366,7 +366,7 @@ config MTK_PMIC #
         default y
 
 config MTK_PMIC_WRAP
-        bool "MediaTek PMIC_WRAP driver "
+        tristate "MediaTek PMIC_WRAP driver "
         default y
         ---help---
           MediaTek pmic_wrap driver 
