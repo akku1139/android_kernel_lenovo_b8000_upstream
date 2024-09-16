@@ -177,11 +177,11 @@ static int mt_irq_set_type(struct irq_data *data, unsigned int flow_type)
     if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
         mt_irq_set_sens(irq, MT65xx_EDGE_SENSITIVE);
         mt_irq_set_polarity(irq, (flow_type & IRQF_TRIGGER_FALLING) ? 0 : 1);
-        __irq_set_handler_locked(irq, handle_edge_irq);
+        irq_set_handler_locked(data, handle_edge_irq);
     } else if (flow_type & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW)) {
         mt_irq_set_sens(irq, MT65xx_LEVEL_SENSITIVE);
         mt_irq_set_polarity(irq, (flow_type & IRQF_TRIGGER_LOW) ? 0 : 1);
-        __irq_set_handler_locked(irq, handle_level_irq);
+        irq_set_handler_locked(data, handle_level_irq);
     }
 
     return 0;
