@@ -41,6 +41,7 @@ jobs:
           mkdir -p /dev/shm/ccache
           sudo apt install ccache
           ccache -M 5G
+          ccache -z
 
       - name: Mediatek Config
         run: |
@@ -56,6 +57,9 @@ jobs:
       # - name: Release
         # run: gh release create "build-$(date +%Y%m%d%H%M%S)" -t "build-$(date +%Y%m%d%H%M%S)" --generate-notes
         # working-directory: build_result
+
+      - name: Ccache statistics
+        run: ccache -s
 
       - name: Clean Repository
         run: |
