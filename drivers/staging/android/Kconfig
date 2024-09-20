@@ -47,10 +47,6 @@ config ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
 	  /sys/module/lowmemorykiller/parameters/adj and convert them
 	  to oom_score_adj values.
 
-config ANDROID_PMEM
-	bool "Android pmem allocator"
-	depends on ARM
-
 config SYNC
 	bool "Synchronization framework"
 	default n
