@@ -9,11 +9,12 @@ permissions:
   contents: write
 
 env:
-  CROSS_COMPILE: "./toolchain/arm-cortex_a7-linux-gnueabihf-linaro_4.9/bin/arm-cortex_a7-linux-gnueabihf-"
+  CROSS_COMPILE: "ccache ./toolchain/arm-cortex_a7-linux-gnueabihf-linaro_4.9/bin/arm-cortex_a7-linux-gnueabihf-"
   KCFLAGS: "-pipe -mtune=cortex-a7 -march=armv7-a -mfpu=neon-vfpv4"
   MTK_ROOT_CUSTOM: "./mediatek"
   TARGET_PRODUCT: "lenovo89_tb_x10_jb2"
   ARCH: "arm"
+  CCACHE_DIR: "/dev/shm/ccache"
 
 jobs:
   build:
@@ -24,7 +25,9 @@ jobs:
         id: cache
         uses: actions/cache/restore@v4
         with:
-          path: ./
+          path: |
+            ./
+            /dev/shm/ccache
           key: env-cache-${{ github.sha }}
           restore-keys: env-cache-
 
@@ -35,6 +38,8 @@ jobs:
         run: |
           sudo ln -sf /usr/bin/bash /usr/bin/sh
           echo `pwd`/toolchain/Python-2.7.18 >> $GITHUB_PATH
+          mkdir /dev/shm/ccache
+          ccache -M 5G
 
       - name: Mediatek Config
         run: |
@@ -45,7 +50,7 @@ jobs:
         run: make oldconfig
 
       - name: Build
-        run: make -j6
+        run: make -j6 HOSTCC="ccache gcc" HOSTCXX="ccache g++"
 
       - name: Release
         run: gh release create "build-$(date +%Y%m%d%H%M%S)" -t "build-$(date +%Y%m%d%H%M%S)" --generate-notes
@@ -55,5 +60,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/cache/save@v4
         with:
-          path: ./
+          path: |
+            ./
+            /dev/shm/ccache
           key: env-cache-${{ github.sha }}
