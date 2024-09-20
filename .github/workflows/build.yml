@@ -59,9 +59,11 @@ jobs:
         # working-directory: build_result
 
       - name: Ccache statistics
-        run: ccache -s
+        if: ${{ !cancelled() }}
+        run: ccache -sv
 
       - name: Clean Repository
+        if: ${{ !cancelled() }}
         run: |
           git clean -ffdx
           git reset --hard HEAD
