@@ -39,6 +39,7 @@ jobs:
           sudo ln -sf /usr/bin/bash /usr/bin/sh
           echo `pwd`/toolchain/Python-2.7.18 >> $GITHUB_PATH
           mkdir /dev/shm/ccache
+          sudo apt install ccache
           ccache -M 5G
 
       - name: Mediatek Config
