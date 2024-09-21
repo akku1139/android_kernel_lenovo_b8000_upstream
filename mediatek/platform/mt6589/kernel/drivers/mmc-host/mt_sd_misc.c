@@ -1,4 +1,4 @@
-#include <linux/autoconf.h>
+#include <generated/autoconf.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
