@@ -1,3 +1,0 @@
-# Edit this file for local setup changes
-*static*
-math mathmodule.c _math.c # -lm
