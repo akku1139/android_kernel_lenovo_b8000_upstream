@@ -26,16 +26,6 @@
 #include <mach/mtk_memcfg.h>
 
 
-/* boot information */
-#define ATAG_BOOT       0x41000802
-
-/*META com port information*/
-#define ATAG_META_COM 0x41000803
-
-/*device information data*/
-#define ATAG_DEVINFO_DATA 0x41000804
-#define ATAG_DEVINFO_DATA_SIZE 21
-
 #define SERIALNO_LEN 32
 static char serial_number[SERIALNO_LEN];
 
@@ -694,7 +684,7 @@ static struct platform_device mt_hid_dev = {
     .name = "hid-keyboard",
     .id   = -1,
 };
-#endif 
+#endif
 
 /*=======================================================================*/
 /* MT6575 Touch Panel                                                    */
@@ -1069,7 +1059,7 @@ static void cmdline_filter(struct tag *cmdline_tag, char *default_cmdline)
 	    	    if (memcmp(cs, undesired_cmds[i], strlen(undesired_cmds[i])) == 0) {
 			ck_f = 1;
                         break;
-                    }    		
+                    }
 	    	}
 
                 if(ck_f == 0){
@@ -1503,8 +1493,8 @@ static struct platform_device mtk_nfc_6605_dev = {
 /* Sim switch driver                                                         */
 /*=======================================================================*/
 #if defined (CUSTOM_KERNEL_SSW)
-static struct platform_device ssw_device = {	
-	.name = "sim-switch",	
+static struct platform_device ssw_device = {
+	.name = "sim-switch",
 	.id = -1};
 #endif
 
@@ -1649,7 +1639,7 @@ __init int mt6589_board_init(void)
     printk("register 8193_CKGEN device\n");
     retval = platform_device_register(&mtk_ckgen_dev);
     if (retval != 0){
-        
+
         printk("register 8193_CKGEN device FAILS!\n");
         return retval;
     }
@@ -1744,7 +1734,7 @@ __init int mt6589_board_init(void)
 
 
 
-    
+
 
 #if defined(MTK_TVOUT_SUPPORT)
     retval = platform_device_register(&mt6575_TVOUT_dev);
@@ -1947,7 +1937,7 @@ retval = platform_device_register(&dummychar_device);
     retval = platform_device_register(&spm_mcdi_pdev);
     if (retval != 0) {
         return retval;
-    }    
+    }
 
     retval = platform_device_register(&golden_setting_pdev);
     if (retval != 0) {
@@ -2037,10 +2027,10 @@ retval = platform_device_register(&dummychar_device);
 	}
 #endif
 
-#if defined (CUSTOM_KERNEL_SSW)	
-	retval = platform_device_register(&ssw_device);    
-	if (retval != 0) {        
-		return retval;    
+#if defined (CUSTOM_KERNEL_SSW)
+	retval = platform_device_register(&ssw_device);
+	if (retval != 0) {
+		return retval;
 	}
 #endif
 
