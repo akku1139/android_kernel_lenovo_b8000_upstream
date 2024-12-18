@@ -26,6 +26,16 @@
 #include <mach/mtk_memcfg.h>
 
 
+/* boot information */
+#define ATAG_BOOT       0x41000802
+
+/*META com port information*/
+#define ATAG_META_COM 0x41000803
+
+/*device information data*/
+#define ATAG_DEVINFO_DATA 0x41000804
+#define ATAG_DEVINFO_DATA_SIZE 21
+
 #define SERIALNO_LEN 32
 static char serial_number[SERIALNO_LEN];
 
